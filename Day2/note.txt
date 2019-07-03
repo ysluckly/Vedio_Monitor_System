@@ -1,0 +1,192 @@
+20190702主要讲解知识点：
+	1）LCD屏幕显示颜色。
+	2）LCD屏幕显示图片。
+	3）触控屏的使用。
+	4）线程的学习。
+
+一、LCD屏幕显示颜色
+	1）预习open、close、read函数的使用。
+		练习4：
+			1）编辑open.c源程序，保存共享文件夹中。实现如下功能：（open、close）
+					打开/home/gec/Desktop/1.txt文件，打印open函数的返回值，关闭文件。
+			2）使用vi/vim编辑器写“hello world!”字符串到1.txt文件中。read.c源程序实现如下功能：（read、bzero）
+					读取1.txt文件中“hello world!”字符串到数组txt_buf中，并打印txt_buf中的内容。
+	2）mmap、munmap		
+	
+	read.c---->000-张三-李四(4).c
+	
+	man手册
+	1   Executable programs or shell commands
+	2   System calls (functions provided by the kernel)
+	3   Library calls (functions within program libraries)
+	
+	man -f 关键字（函数名）
+	例如： man -f open
+	man 手册号 open
+	功能：打开一个文件或设备。
+	头文件：
+		#include <sys/types.h>
+		#include <sys/stat.h>
+		#include <fcntl.h>
+	函数的原型：
+		int open(const char *pathname, int flags);
+	参数的内容：
+		const char *pathname：设备/文件的路径
+		int flags： 
+				O_RDONLY   只读
+				O_WRONLY   只写
+				O_RDWR     可读可写
+	返回值：
+		成功：返回一个文件描述符。（代表打开的设备或文件）
+		失败： -1。
+	
+	close
+	#include <unistd.h>
+	int close(int fildes);
+	int fildes：open的返回值。
+
+	read
+	#include <unistd.h>
+	ssize_t read(int fd, void *buf, size_t count);
+	int fd:读取文件的文件描述符。
+	void *buf：读取数据存放的地址。
+	size_t count：读取文件的大小。
+	返回值：
+		成功：返回读取到的字节数。
+		失败：-1。
+	
+	#include <strings.h>
+    void bzero(void *s, size_t n);
+	void *s：地址。
+	size_t n：填0个数。
+	
+	LCD屏幕:
+	1）尺寸：7寸（800*480）
+	   总的像素点：800*480
+	   每个像素点占用4byte
+		ARGB
+		1byte   -----> A ---->透明度（0x00）
+		1byte   -----> R ---->红色
+		1byte   -----> G ---->绿色
+		1byte   -----> B ---->蓝色
+		
+		1个LCD屏幕的像素显示纯绿色：
+		    A      ：       R      ：     G       :      B
+		0000 0000  ：  0000 0000   ： 1111 1111   ：  0000 0000
+		
+		int color = 0x0000ff00;  --->内存
+		
+		
+	    LCD屏幕显存显示颜色的区域占用总字节数=总的像素点*每个像素点占用的字节数
+	                                        =800*480*4byte
+	
+	举例：
+	将1个LCD像素点的数据显示到LCD屏幕上。
+	编程思路：
+		1）打开LCD屏幕。open
+			一切皆文件。（/dev/fb0）
+			int fd_fb0 = open();
+		2）将内存中颜色数据放到显存上。
+			mmap、munmap	
+			
+		#include <sys/mman.h>
+		void *mmap(void *addr, size_t length, int prot, int flags,
+					int fd, off_t offset);
+		参数的含义：
+			void *addr:	NULL。（表示由Linux系统内核自动分配一个起始地址）
+			size_t length：映射空间的大小。800*480*4
+			int prot：映射空间的属性设置。（PROT_READ|PROT_WRITE）
+				PROT_EXEC  Pages may be executed.
+				PROT_READ  Pages may be read.
+				PROT_WRITE Pages may be written.
+				PROT_NONE  Pages may not be accessed.
+			int flags：MAP_SHARED Share this mapping. 
+			int fd：文件描述符。（open的返回值fd_fb0）
+			off_t offset:偏移量。0
+		返回值：
+				成功：返回一个指针指向映射区域的首地址。
+				失败： MAP_FAILED  ---> (void *) -1
+		
+		int munmap(void *addr, size_t length);
+		void *addr:分配映射空间的首地址。
+		size_t length：释放空间的大小。
+					
+		什么叫指针？
+		指针是只存储地址的变量。
+
+		3）关闭LCD屏幕。
+		
+	练习5：
+		让整个LCD屏幕显示黄色。（R:G:B=255:255:0）
+
+二、LCD屏幕显示24bitBMP图片。
+	1）BMP格式图片
+	
+		1）BMP文件存储数据时，图像的扫描方式是按从左到右、从下到上的顺序。
+		   LCD屏幕显示数据时，图像的扫描方式是按从左到右、从上到下的顺序。
+		   问题1：
+				颠倒图片
+		
+		2）BMP文件由文件头、位图信息头、颜色信息和图形数据四部分组成。	
+		BMP文件头（14byte）数据结构含有BMP文件的类型、文件大小和位图起始位置等信息。
+		位图信息头（40byte）说明位图的尺寸等信息。
+		7) 19-22：位图宽度，以像素为单位。8000 0000，为00000080h=128。
+　　	8）23-26：位图高度，以像素为单位。9000 0000，为00000090h=144。
+		
+		颜色信息和图形数据 --->颜色数据。
+		typedef struct tagRGBQUAD {
+		　　BYTE rgbBlue;// 蓝色的亮度（值范围为0-255)
+		　　BYTE rgbGreen; // 绿色的亮度（值范围为0-255)
+		　　BYTE rgbRed; // 红色的亮度（值范围为0-255)
+		　　BYTE rgbReserved;// 保留，必须为0
+		　} RGBQUAD;
+		
+		当biBitCount=24时，1个BMP像素占3个字节；
+		LCD屏幕1个像素点4byte
+		问题2：	
+			800*480个BMP像素点变成800*480个LCD像素点。
+		
+		一张24bitBMP格式图片的大小 = 尺寸* 每个像素点占用的空间大小 + 54byte
+			  main.bmp = 800*480*3byte + 54byte
+			           =1152054byte
+	举例：
+		显示800*480尺寸的24bitBMP格式图片到LCD屏幕上。
+		编程思路：
+		1）打开LCD屏幕，打开图片。	
+		2）创建映射通道，将内存中图片的颜色数据通过p_mmap放到LCD屏幕。
+			1）去掉BMP图片的前54byte。
+			2）解决两个算法：
+				1）800*480个BMP像素点变成800*480个LCD像素点。
+				char bmp_buf[800*480*3]; //char --->1byte
+				int lcd_buf[800*480];    //int --->4byte
+				
+				read读取main.bmp中图像数据到bmp_buf。
+				
+				
+				2）颠倒图片。
+		3）关闭LCD屏幕，关闭图片，释放映射空间的资源。
+
+	使用U盘挂载的方式将图片放到开发板/root/project/images	
+	1）U盘文件系统一定是FAT32/FAT格式
+	2）挂在U盘，SercureCRT出现：sda: sda1，挂载成功。（/mnt/udisk/）
+	[root@GEC6818 /]#cd /mnt/udisk/
+	[root@GEC6818 /mnt/udisk]#ls
+	20190701????               main.bmp
+	System Volume Information
+	[root@GEC6818 /mnt/udisk]#pwd
+	/mnt/udisk
+	[root@GEC6818 /mnt/udisk]#
+	
+	3）复制main.bmp到/root/project/images
+	[root@GEC6818 /mnt/udisk]#cp main.bmp /root/project/images/
+	[root@GEC6818 /mnt/udisk]#cd /root/project/images/
+	[root@GEC6818 ~/project/images]#ls
+	main.bmp
+	[root@GEC6818 ~/project/images]#ls -l
+	total 1128
+	-rwxr-xr-x    1 root     root       1152054 Jan  1 00:03 main.bmp
+	[root@GEC6818 ~/project/images]#
+		
+	练习6：
+		显示800*480尺寸的24bitBMP格式图片到LCD屏幕上。
+					   
