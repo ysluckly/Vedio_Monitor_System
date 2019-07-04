@@ -1,0 +1,2 @@
+交叉编译       编译的文件      二进制文件   链接对应的头文件   链接对应的库文件
+arm-linux-gcc *.c -o armmain -I./jpeg -L./jpeg -ljpeg -lapi_v4l2_arm -pthread
