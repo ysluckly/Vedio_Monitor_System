@@ -181,7 +181,15 @@ QQ群：761410451
 					打开/home/gec/Desktop/1.txt文件，打印open函数的返回值，关闭文件。
 			2）使用vi/vim编辑器写“hello world!”字符串到1.txt文件中。read.c源程序实现如下功能：（read、bzero）
 					读取1.txt文件中“hello world!”字符串到数组txt_buf中，并打印txt_buf中的内容。
-	2）mmap、munmap			
+	2）mmap、munmap	
+
+	vi/vim编辑器的使用
+		打开文件的用法：vi + 文件名
+		vi 1.txt
+		vi/vim编辑器打开文件后直接进入命令模式
+		按i或a或o进入编辑模式，左下方出现INSERT标志。
+		退出vi编辑器：Esc键 + :wq    
+	
 	
 	
 	
